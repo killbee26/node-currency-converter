@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Currency Converter</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      margin: 0;
+      background-color: #f4f6f8;
+      color: #111;
+      font-family: "Segoe UI", sans-serif;
+      display: flex;
+      min-height: 100vh;
+    }
+    .container {
+      display: flex;
+      width: 100%;
+      padding: 40px;
+      gap: 30px;
+    }
+    .left, .right {
+      background-color: #fff;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+    .left {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 20px;
+    }
+    .right {
+      flex: 2;
+      display: flex;
+      flex-direction: column;
+    }
+    h2 {
+      margin-bottom: 10px;
+      color: #333;
+    }
+    label {
+      font-weight: 600;
+    }
+    select, input {
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    button {
+      padding: 12px;
+      background-color: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: #4338ca;
+    }
+    #result {
+      margin-top: 15px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #0f172a;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 14px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background-color: #f1f5f9;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    tr:hover {
+      background-color: #f9fafb;
+    }
+    .pagination {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    .pagination button {
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: none;
+      background: #64748b;
+      color: #fff;
+    }
+    .pagination button:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+    }
+    .pagination span {
+      font-weight: 600;
+      color: #1e293b;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="left">
+      <h2>Currency Converter</h2>
+      <form id="convert-form">
+        <label for="from">From Currency:</label>
+        <select id="from"></select>
+
+        <label for="to">To Currency:</label>
+        <select id="to"></select>
+
+        <br>
+
+        <label for="amount">Amount:</label>
+        <input type="number" id="amount" placeholder="Enter amount" required />
+
+        <button type="submit">Convert</button>
+      </form>
+      <div id="result">Converted Amount: -</div>
+    </div>
+
+    <div class="right">
+      <h2>Latest Exchange Rates (Base EUR)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Currency</th>
+            <th>Rate</th>
+          </tr>
+        </thead>
+        <tbody id="rates-table">
+          <tr><td colspan="2">Loading...</td></tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <button id="prev">Prev</button>
+        <span id="page-info">Page 1</span>
+        <button id="next">Next</button>
+      </div>
+    </div>
+    <form action="/logout" method="POST" style="text-align:right;">
+      <button type="submit" style="background:#ef4444;">Logout</button>
+  </form>
+
+  </div>
+
+  <script>
+    let ratesData = [];
+    let currentPage = 1;
+    const rowsPerPage = 10;
+
+    async function loadRates() {
+      try {
+        const response = await fetch("/rate/latest");
+        const data = await response.json();
+        ratesData = Object.entries(data.rates);
+        populateDropdowns();
+        displayPage(currentPage);
+      } catch (error) {
+        document.getElementById("rates-table").innerHTML = "<tr><td colspan='2'>Failed to load rates</td></tr>";
+        console.error(error);
+      }
+    }
+
+    function populateDropdowns() {
+      const fromSelect = document.getElementById("from");
+      const toSelect = document.getElementById("to");
+      ratesData.forEach(([currency]) => {
+        const option1 = document.createElement("option");
+        option1.value = currency;
+        option1.text = currency;
+        const option2 = option1.cloneNode(true);
+        fromSelect.appendChild(option1);
+        toSelect.appendChild(option2);
+      });
+      fromSelect.value = "USD";
+      toSelect.value = "INR";
+    }
+
+    function displayPage(page) {
+      const table = document.getElementById("rates-table");
+      table.innerHTML = "";
+      const start = (page - 1) * rowsPerPage;
+      const end = start + rowsPerPage;
+      const paginatedItems = ratesData.slice(start, end);
+
+      paginatedItems.forEach(([currency, rate]) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${currency}</td><td>${rate}</td>`;
+        table.appendChild(row);
+      });
+
+      document.getElementById("page-info").innerText = `Page ${page} of ${Math.ceil(ratesData.length / rowsPerPage)}`;
+      document.getElementById("prev").disabled = page === 1;
+      document.getElementById("next").disabled = end >= ratesData.length;
+    }
+
+    document.getElementById("prev").addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage--;
+        displayPage(currentPage);
+      }
+    });
+
+    document.getElementById("next").addEventListener("click", () => {
+      if (currentPage * rowsPerPage < ratesData.length) {
+        currentPage++;
+        displayPage(currentPage);
+      }
+    });
+
+    document.getElementById("convert-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const from = document.getElementById("from").value;
+      const to = document.getElementById("to").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+
+      const fromRate = ratesData.find(([currency]) => currency === from)?.[1];
+      const toRate = ratesData.find(([currency]) => currency === to)?.[1];
+
+      if (fromRate && toRate) {
+        const converted = (amount / fromRate) * toRate;
+        document.getElementById("result").innerText = `Converted Amount: ${converted.toFixed(2)} ${to}`;
+      } else {
+        document.getElementById("result").innerText = "Conversion failed";
+      }
+    });
+
+    loadRates();
+  </script>
+</body>
+</html>
